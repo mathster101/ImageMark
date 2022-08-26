@@ -2,7 +2,6 @@ import matrix_op as mop
 import multiprocessing as mp
 import procs as p
 import cv2
-from timeit import default_timer as timer
 import numpy as np
 
 def load_image(path, CHUNK_SIZE):
@@ -31,23 +30,12 @@ def extract_chunks(img, CHUNK_SIZE):
             prev_col = col
     return chunk_data, img
 
-def single_core(chunk_data, img):
-    cv2.namedWindow("Single Core", cv2.WINDOW_KEEPRATIO)
-    start = timer()
-    for cd in chunk_data:
-        img[cd["tl"][0]:cd["br"][0],cd["tl"][1]:cd["br"][1],:] = 255 * mop.edgify(cd["matrix"])
-        cv2.imshow("Single Core", img)
-        key = cv2.waitKey(1)
-    end = timer()
-    cv2.destroyAllWindows()   
-    return end - start # elapsed
-
 if __name__ == "__main__":    
     CORES = 4
-    CHUNK_SIZE = 10
-    img = load_image("test2.png", CHUNK_SIZE)
+    CHUNK_SIZE = 100
+    img = load_image("test.png", CHUNK_SIZE)
     chunk_data, img1 = extract_chunks(img, CHUNK_SIZE)
-    p.multi_core(img1, CHUNK_SIZE, chunk_data)
-    t = single_core(chunk_data, img1)
-    print(t,"seconds")
-    #cv2.destroyAllWindows()    
+    #p.multi_core(img1, chunk_data)
+    p.multi_core2(img1, chunk_data)
+    #p.single_core(chunk_data, img1)
+    

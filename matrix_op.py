@@ -17,14 +17,14 @@ def edgify(mat):
                 continue
             else:
                 mat_modified[r][c][:] = np.std(slice)
-    return mat_modified / np.max(mat_modified)#scale to [0,1]
+    return mat_modified / (np.max(mat_modified) + 0.001)#scale to [0,1]
             
 
 
 
 
 if __name__ == "__main__":
-    img = cv2.imread("test.png",2)
+    img = cv2.imread("test.png")#,2)
     modif = edgify(img)
     cv2.imshow("op",modif)
     cv2.waitKey(0) 
