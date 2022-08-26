@@ -14,23 +14,33 @@ def chunk_process(chunk_data, queue):
 
 def chunk_process2(in_queue, out_queue, disp_queue):
     flag = True
+    hungry_sent = False
     while flag:
-        empty = in_queue.empty()
-        if not empty:
+        print("cp")
+        print(in_queue.qsize(), out_queue.qsize())
+        if not in_queue.empty():
             chunk_data = in_queue.get()
             if chunk_data == "TERMINATE":
+                print("kill cmd")
                 flag = False
             else:
                 chunk = chunk_data["matrix"]
                 chunk_data["matrix"] = 255 * mop.edgify(chunk)
                 disp_queue.put(chunk_data)
-                
+                hungry_sent = False
+                print(in_queue.qsize(), out_queue.qsize())
                 if in_queue.empty():
-                    out_queue.put("HUNGRY")
+                    if not hungry_sent:
+                        out_queue.put("HUNGRY")
+                        hungry_sent = True
+                        print(in_queue.qsize(), out_queue.qsize())
+                        print("pp")
+                    pass
         else:
-            out_queue.put("HUNGRY")
+            if not hungry_sent:
+                out_queue.put("HUNGRY")
+                hungry_sent = True
             pass
-    return 0
     #send to disp proc
 
 def display_process(original_image, queue):
@@ -41,7 +51,7 @@ def display_process(original_image, queue):
         if queue.empty() != True:
             chunk_data = queue.get()
             if chunk_data == "STOP":
-                time.sleep(6)
+                time.sleep(2)
                 flag = False
                 continue
             chunk = chunk_data["matrix"]
@@ -49,7 +59,7 @@ def display_process(original_image, queue):
         cv2.imshow("ImageMark", screen)
         cv2.setWindowProperty('ImageMark', 1, cv2.WINDOW_NORMAL)
         cv2.resizeWindow("ImageMark", 500, 500)
-        cv2.waitKey(200)
+        cv2.waitKey(1)
 
 def single_core(chunk_data, img):
     cv2.namedWindow("Single Core", cv2.WINDOW_KEEPRATIO)
@@ -106,28 +116,28 @@ def multi_core2(img, chunk_data):
         temp["in"]   = mp.Queue()
         temp["out"]  = mp.Queue()
         temp["proc"] = mp.Process(target=chunk_process2, args=(temp["in"], temp["out"], disp_queue,))
-        temp["status"] = True
+        temp["status"] = "Free"
         procs.append(temp)
     for i in range(CORES):
         procs[i]["proc"].start()  
     active = True
-    while active:
-        print(len(chunk_data))
-        for i in range(CORES):
-            if procs[i]["status"] == False:
-                continue
-            if len(chunk_data) == 0:
-                print("hello?")
+    while len(procs) > 0:
+        for i in range(len(procs) - 1, -1, -1):
+            try:
+                if procs[i]["status"] == False:
+                    continue
+            except Exception as e:
+                pass
+
+            if len(chunk_data) == 0 and procs[i]["in"].empty():
+                print("len procs = ",len(procs), " i = ",i)
                 procs[i]["in"].put("TERMINATE")
-                procs[i]["status"] = False
-                active = active or procs[i]["status"]
             else:
                 if procs[i]["out"].empty() != True:
                     data = procs[i]["out"].get()
                     if data == "HUNGRY":
                         procs[i]["in"].put(chunk_data.pop())
-                    procs[i]["status"] = True
-                    active = active or procs[i]["status"]
+                        #print(i, "l = ", procs[i]["in"].qsize(),procs[i]["out"].qsize())
 
     end = timer()
     disp_queue.put("STOP")

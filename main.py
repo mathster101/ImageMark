@@ -32,8 +32,8 @@ def extract_chunks(img, CHUNK_SIZE):
 
 if __name__ == "__main__":    
     CORES = 4
-    CHUNK_SIZE = 100
-    img = load_image("test.png", CHUNK_SIZE)
+    CHUNK_SIZE = 100 
+    img = load_image("test2.png", CHUNK_SIZE)
     chunk_data, img1 = extract_chunks(img, CHUNK_SIZE)
     #p.multi_core(img1, chunk_data)
     p.multi_core2(img1, chunk_data)
