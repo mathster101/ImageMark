@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 def edgify(mat):
-    KERNEL = 5
+    KERNEL = 50
     mat = np.array(mat)
     mat_modified = mat.copy()
     for r in range(len(mat)):
@@ -13,7 +13,7 @@ def edgify(mat):
             right = min(len(mat[0]) + 1, c + int(KERNEL/2) + 1)
             slice = mat[top:bottom,left:right,:]
             if slice.shape[0] == 0 or slice.shape[1] == 0:
-                mat_modified[r][c][:] = 1
+                mat_modified[r][c][:] = 1#0.001
                 continue
             else:
                 mat_modified[r][c][:] = np.std(slice)

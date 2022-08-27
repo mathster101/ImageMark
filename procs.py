@@ -8,9 +8,12 @@ import random
 def display_process(original_image, CORES, queue):
     screen = original_image
     cv2.namedWindow("ImageMark", cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback("ImageMark", lambda *args : None)
     flag = True
+    counter = 0
     while flag:
-        if queue.qsize() > CORES:
+        counter += 1
+        if queue.qsize() > CORES * 3:
             print("INCREASE CHUNK SIZE!")
         if queue.empty() != True:
             chunk_data = queue.get()
@@ -20,10 +23,13 @@ def display_process(original_image, CORES, queue):
                 continue
             chunk = chunk_data["matrix"]
             screen[chunk_data["tl"][0]:chunk_data["br"][0],chunk_data["tl"][1]:chunk_data["br"][1],:] = chunk
-        cv2.imshow("ImageMark", screen)
-        cv2.setWindowProperty('ImageMark', 1, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("ImageMark", int(len(screen[0])/5), int(len(screen)/5))
-        cv2.waitKey(1)
+        if counter%50000 == 0:
+            cv2.imshow("ImageMark", screen)
+            cv2.setWindowProperty('ImageMark', 1, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("ImageMark", int(len(screen[0])/5), int(len(screen)/5))
+            cv2.waitKey(1)
+            counter = 0
+    print("disp terminated")
 
 def single_core(chunk_data, img):
     cv2.namedWindow("Single Core", cv2.WINDOW_KEEPRATIO)
@@ -42,10 +48,10 @@ def chunk_process(in_queue, disp_queue):
         chunk_data["matrix"] = 255 * mop.edgify(chunk_data["matrix"])
         #send to disp proc
         disp_queue.put(chunk_data)
-    print("terminated")
+    print("end of life")
+    quit()
 
-def multi_core(img, chunk_data):
-    CORES = 4
+def multi_core(img, chunk_data, CORES):
     chunk_data = chunk_data[::-1]
     procs = []
     kappa = mp.Lock()
@@ -54,8 +60,6 @@ def multi_core(img, chunk_data):
     disp =  mp.Process(target=display_process, args=(img, CORES, disp_queue, ))
     disp.start()
     start = timer()
-    Flag = True
-    num_terminated = 0
     ##########################
     for i in range(CORES):
         temp = dict()
@@ -69,10 +73,12 @@ def multi_core(img, chunk_data):
                 continue
             procs[i]["in"].put(chunk_data.pop())
     for i in range(CORES):
+        procs[i]["proc"].daemon = True
         procs[i]["proc"].start()
  
-    for i in range(CORES -1 , 0 , -1):
+    for i in range(CORES):
         procs[i]["proc"].join()
+        print("killed one")
     end = timer()
     disp_queue.put("STOP")
     print(end - start)

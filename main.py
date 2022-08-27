@@ -1,8 +1,6 @@
-import matrix_op as mop
-import multiprocessing as mp
+import random
 import procs as p
 import cv2
-import numpy as np
 
 def load_image(path, CHUNK_SIZE):
     #load and crop image
@@ -28,13 +26,14 @@ def extract_chunks(img, CHUNK_SIZE):
             chunk_data.append(data)
             prev_row = row - CHUNK_SIZE
             prev_col = col
+    random.shuffle(chunk_data)
     return chunk_data, img
 
 if __name__ == "__main__":    
-    CORES = 8
-    CHUNK_SIZE = 400
+    CORES = 4
+    CHUNK_SIZE = 300
     img = load_image("test3.png", CHUNK_SIZE)
     chunk_data, img1 = extract_chunks(img, CHUNK_SIZE)
-    p.multi_core(img1, chunk_data)
+    p.multi_core(img1, chunk_data, CORES)
     #p.single_core(chunk_data, img1)
     
