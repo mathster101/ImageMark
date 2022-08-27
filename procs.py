@@ -12,37 +12,6 @@ def chunk_process(chunk_data, queue):
     queue.put(chunk_data)
     return chunk_data
 
-def chunk_process2(in_queue, out_queue, disp_queue):
-    flag = True
-    hungry_sent = False
-    while flag:
-        print("cp")
-        print(in_queue.qsize(), out_queue.qsize())
-        if not in_queue.empty():
-            chunk_data = in_queue.get()
-            if chunk_data == "TERMINATE":
-                print("kill cmd")
-                flag = False
-            else:
-                chunk = chunk_data["matrix"]
-                chunk_data["matrix"] = 255 * mop.edgify(chunk)
-                disp_queue.put(chunk_data)
-                hungry_sent = False
-                print(in_queue.qsize(), out_queue.qsize())
-                if in_queue.empty():
-                    if not hungry_sent:
-                        out_queue.put("HUNGRY")
-                        hungry_sent = True
-                        print(in_queue.qsize(), out_queue.qsize())
-                        print("pp")
-                    pass
-        else:
-            if not hungry_sent:
-                out_queue.put("HUNGRY")
-                hungry_sent = True
-            pass
-    #send to disp proc
-
 def display_process(original_image, queue):
     screen = original_image
     cv2.namedWindow("ImageMark", cv2.WINDOW_KEEPRATIO)
@@ -101,47 +70,78 @@ def multi_core(img,chunk_data):
     print(end - start,"seconds")
     return True
 
+def chunk_process2(in_queue, out_queue, disp_queue, lock):
+    terminate = False
+    while terminate == False:
+        if in_queue.empty() == False:
+            lock.acquire()
+            data = in_queue.get()
+            lock.release()
+            if data == "TERMINATE":
+                terminate = True
+                print("Terminate!")
+            elif data == None:
+                continue
+            else:
+                send = dict({})
+                chunk = data["matrix"]
+                send["matrix"] = 255* mop.edgify(chunk)
+                send["br"] = data["br"]
+                send["tl"] = data["tl"]
+                lock.acquire()
+                disp_queue.put(send)
+                lock.release()
+        else:
+            lock.acquire()
+            if out_queue.empty() == True:
+                out_queue.put("HUNGRY")
+            lock.release()
+    print("Escaped")    
+
+
 def multi_core2(img, chunk_data):
     CORES = 4
     chunk_data = chunk_data[::-1]
     procs = []
+    kappa = mp.Lock()
     #display proc and queue
     disp_queue = mp.Queue()
     disp =  mp.Process(target=display_process, args=(img,disp_queue, ))
     disp.start()
     start = timer()
+    Flag = True
+    num_terminated = 0
     ##########################
     for i in range(CORES):
         temp = dict()
         temp["in"]   = mp.Queue()
         temp["out"]  = mp.Queue()
-        temp["proc"] = mp.Process(target=chunk_process2, args=(temp["in"], temp["out"], disp_queue,))
-        temp["status"] = "Free"
+        temp["lock"] = mp.Lock()
+        temp["proc"] = mp.Process(target=chunk_process2, args=(temp["in"], temp["out"], disp_queue, temp["lock"],))
         procs.append(temp)
-    for i in range(CORES):
-        procs[i]["proc"].start()  
-    active = True
-    while len(procs) > 0:
-        for i in range(len(procs) - 1, -1, -1):
-            try:
-                if procs[i]["status"] == False:
-                    continue
-            except Exception as e:
-                pass
+        procs[-1]["proc"].start()
 
-            if len(chunk_data) == 0 and procs[i]["in"].empty():
-                print("len procs = ",len(procs), " i = ",i)
-                procs[i]["in"].put("TERMINATE")
-            else:
+    while Flag:
+        for i in range(len(procs)):
+            if len(chunk_data) > 0:
+                #Core is requesting a chunk
                 if procs[i]["out"].empty() != True:
-                    data = procs[i]["out"].get()
-                    if data == "HUNGRY":
-                        procs[i]["in"].put(chunk_data.pop())
-                        #print(i, "l = ", procs[i]["in"].qsize(),procs[i]["out"].qsize())
-
+                    msg = procs[i]["out"].get()
+                    if msg == "HUNGRY":
+                        chunk = chunk_data.pop()
+                        kappa.acquire()
+                        procs[i]["in"].put(chunk)
+                        kappa.release()
+            else:
+                procs[i]["in"].put("TERMINATE")
+                num_terminated += 1
+                if num_terminated == CORES:
+                    Flag = False
+                    print("pp")
     end = timer()
+    time.sleep(2)#doesnt exit gracefully without this
     disp_queue.put("STOP")
-    print(end - start, "seconds")
+    print(end - start)    
 
 
 if __name__ == "__main__":
