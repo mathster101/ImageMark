@@ -79,7 +79,6 @@ def chunk_process2(in_queue, out_queue, disp_queue, lock):
             lock.release()
             if data == "TERMINATE":
                 terminate = True
-                print("Terminate!")
             elif data == None:
                 continue
             else:
@@ -96,7 +95,7 @@ def chunk_process2(in_queue, out_queue, disp_queue, lock):
             if out_queue.empty() == True:
                 out_queue.put("HUNGRY")
             lock.release()
-    print("Escaped")    
+    print("Terminated")    
 
 
 def multi_core2(img, chunk_data):
@@ -125,21 +124,21 @@ def multi_core2(img, chunk_data):
         for i in range(len(procs)):
             if len(chunk_data) > 0:
                 #Core is requesting a chunk
+                kappa.acquire()
                 if procs[i]["out"].empty() != True:
                     msg = procs[i]["out"].get()
                     if msg == "HUNGRY":
                         chunk = chunk_data.pop()
-                        kappa.acquire()
                         procs[i]["in"].put(chunk)
-                        kappa.release()
+                kappa.release()
             else:
                 procs[i]["in"].put("TERMINATE")
+                procs[i]["proc"].terminate()
                 num_terminated += 1
                 if num_terminated == CORES:
                     Flag = False
-                    print("pp")
     end = timer()
-    time.sleep(2)#doesnt exit gracefully without this
+    time.sleep(3)#doesnt exit gracefully without this
     disp_queue.put("STOP")
     print(end - start)    
 
