@@ -1,6 +1,7 @@
 import random
 import procs as p
 import cv2
+import numpy as np
 
 def load_image(path, CHUNK_SIZE):
     #load and crop image
@@ -22,7 +23,7 @@ def extract_chunks(img, CHUNK_SIZE):
             #img = cv2.rectangle(img, (col,row), (prev_col,prev_row), (row/10,col/10,col), 2)
             data["br"] = (row, col)
             data["tl"] = (prev_row, prev_col)
-            data["matrix"]   = img[prev_row : row, prev_col : col, :]
+            data["matrix"]   = np.array(img[prev_row : row, prev_col : col, :])
             chunk_data.append(data)
             prev_row = row - CHUNK_SIZE
             prev_col = col
@@ -31,9 +32,9 @@ def extract_chunks(img, CHUNK_SIZE):
 
 if __name__ == "__main__":    
     CORES = 4
-    CHUNK_SIZE = 300
+    CHUNK_SIZE = 400
     img = load_image("test3.png", CHUNK_SIZE)
-    chunk_data, img1 = extract_chunks(img, CHUNK_SIZE)
-    p.multi_core(img1, chunk_data, CORES)
+    chunk_data, img = extract_chunks(img, CHUNK_SIZE)
+    p.multi_core(img, chunk_data, CORES)
     #p.single_core(chunk_data, img1)
     

@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 def edgify(mat):
-    KERNEL = 50
+    KERNEL = 10
     mat = np.array(mat)
     mat_modified = mat.copy()
     for r in range(len(mat)):

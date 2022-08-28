@@ -3,8 +3,7 @@ import cv2
 import matrix_op as mop
 import time
 from timeit import default_timer as timer
-import random
-
+import numpy as np
 def display_process(original_image, CORES, queue):
     screen = original_image
     cv2.namedWindow("ImageMark", cv2.WINDOW_NORMAL)
@@ -23,7 +22,7 @@ def display_process(original_image, CORES, queue):
                 continue
             chunk = chunk_data["matrix"]
             screen[chunk_data["tl"][0]:chunk_data["br"][0],chunk_data["tl"][1]:chunk_data["br"][1],:] = chunk
-        if counter%50000 == 0:
+        if counter%30000 == 0:
             cv2.imshow("ImageMark", screen)
             cv2.setWindowProperty('ImageMark', 1, cv2.WINDOW_NORMAL)
             cv2.resizeWindow("ImageMark", int(len(screen[0])/5), int(len(screen)/5))
@@ -43,12 +42,15 @@ def single_core(chunk_data, img):
     return end - start # elapsed
 
 def chunk_process(in_queue, disp_queue):
+    from os import getpid
+    print(getpid()%21)
     while not in_queue.empty():
         chunk_data = in_queue.get()
         chunk_data["matrix"] = 255 * mop.edgify(chunk_data["matrix"])
+        chunk_data["matrix"] = cv2.applyColorMap(chunk_data["matrix"].astype(np.uint8), getpid()%21)
         #send to disp proc
         disp_queue.put(chunk_data)
-    print("end of life")
+    #print("end of life")
     quit()
 
 def multi_core(img, chunk_data, CORES):
@@ -78,7 +80,7 @@ def multi_core(img, chunk_data, CORES):
  
     for i in range(CORES):
         procs[i]["proc"].join()
-        print("killed one")
+        #print("killed one")
     end = timer()
     disp_queue.put("STOP")
     print(end - start)
