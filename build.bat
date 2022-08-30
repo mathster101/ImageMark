@@ -1,0 +1,1 @@
+pyinstaller --noconsole --noupx --paths C:\Users\Mathew\AppData\Local\Programs\Python\Python310\Lib\site-packages main.py --onefile --window
